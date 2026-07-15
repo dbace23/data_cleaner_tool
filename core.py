@@ -159,16 +159,25 @@ class Deduplicator(BaseCleaner):
 
 class StringNormalizer(BaseCleaner):
     def implement(self, df: pd.DataFrame, report: CleaningReport) -> pd.DataFrame:
-        # PROJECT: BUAT KODE UNTUK MELAKUKAN STRING NORMALISASI:
-        # Menghapus extra spasi
-        # Mengubah huruf menjadi huruf kecil (lower case)
+        for config in self.config.column_configs:
+            if config.name not in df.columns:
+                continue
 
-        # HINTS:
-        # Perhatikan apakah sedang memproses kolom yang benar
-        # perhatikan apakah type data adalah string (object di pandas)
-        # perhatikan apakah config mengijinkan text stripping
-        # perhatikan apakah config ingin melakukan perubahan ke lower case.
-        
+            series = df[config.name]
+            if not (pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series)):
+                continue
+
+            if config.strip_string:
+                df[config.name] = (
+                    df[config.name]
+                    .astype("string")
+                    .str.strip()
+                    .str.replace(r"\s+", " ", regex=True)
+                )
+
+            if config.lower_case:
+                df[config.name] = df[config.name].astype("string").str.lower()
+
         return df
 
 class AllowedValuesFilter(BaseCleaner):
