@@ -136,12 +136,25 @@ class MissingValueHandler(BaseCleaner):
 
 class Deduplicator(BaseCleaner):
     def implement(self, df: pd.DataFrame, report: CleaningReport) -> pd.DataFrame:
-        
-        # PROJECT: BUATLAH KODE UNTUK MENGHAPUS DUPLIKASI DATA DISINI
+        if not self.config.drop_duplicated:
+            return df
 
-        # NOTES:
-        # 1. Pertimbangkan atribbut drop_duplicated pada ColumnConfig
-        # 2. Pertimbangkan kemungkinan user menghapus data berdasarkan kolom subset tertentu.
+        subset = self.config.duplicate_subset
+
+        if subset:
+            existing_subset = [col for col in subset if col in df.columns]
+            if not existing_subset:
+                return df
+        else:
+            existing_subset = None
+
+        duplicated_mask = df.duplicated(subset=existing_subset, keep="first")
+        n_duplicated = int(duplicated_mask.sum())
+
+        if n_duplicated > 0:
+            df = df.drop_duplicates(subset=existing_subset, keep="first")
+            report.duplicated_removed += n_duplicated
+
         return df
 
 class StringNormalizer(BaseCleaner):
