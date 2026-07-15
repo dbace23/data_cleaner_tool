@@ -182,13 +182,36 @@ class StringNormalizer(BaseCleaner):
 
 class AllowedValuesFilter(BaseCleaner):
     def implement(self, df: pd.DataFrame, report: CleaningReport) -> pd.DataFrame:
-        # PORJECT: BUATLAH KODE UNTUK MEMFILTER VALUES YANG HANYA DIIJINKAN (menjadikannya np.nan)
-        # CONTOH, KOLOM GENDER, KITA HANYA MENGIJINKAN Male dan Female, maka
-        # values selain itu akan dibuang (dijadikan np.nan)
+        for config in self.config.column_configs:
+            if config.name not in df.columns or config.allowed_values is None:
+                continue
 
-        # HINTS:
-        # perhatikan apakah sedang memproses kolom yang benar
-        # perhatikan apakah user memiliki allowed_values spesifik atau kolom bisa menerima value apa saja.
-        # ambillah value yang diluar allowed_values untuk diubah menjadi np.nan.
-        
+            allowed_values = config.allowed_values
+
+            if pd.api.types.is_object_dtype(df[config.name]) or pd.api.types.is_string_dtype(df[config.name]):
+                checked_series = df[config.name].astype("string")
+
+                if config.strip_string:
+                    checked_series = checked_series.str.strip().str.replace(r"\s+", " ", regex=True)
+                    allowed_values = [
+                        str(value).strip() if not pd.isna(value) else value
+                        for value in allowed_values
+                    ]
+
+                if config.lower_case:
+                    checked_series = checked_series.str.lower()
+                    allowed_values = [
+                        str(value).lower() if not pd.isna(value) else value
+                        for value in allowed_values
+                    ]
+
+                invalid_mask = checked_series.notna() & ~checked_series.isin(allowed_values)
+            else:
+                invalid_mask = df[config.name].notna() & ~df[config.name].isin(allowed_values)
+
+            n_invalid = int(invalid_mask.sum())
+            if n_invalid > 0:
+                df.loc[invalid_mask, config.name] = np.nan
+                report.invalid_values_deleted[config.name] = n_invalid
+
         return df
